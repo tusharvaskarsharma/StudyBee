@@ -11,7 +11,7 @@
     "notifications"
   ],
   "host_permissions": [
-    "http://localhost:3000/*"
+    "https://studybee-3ru4.onrender.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -29,4 +29,5 @@
     "48": "icon48.png",
     "128": "icon128.png"
   }
+
 }
