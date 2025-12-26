@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Productivity Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <h1>StudyBee 🐝</h1>
+      
+      <!-- Daily Motivation -->
+      <div class="daily-motivation">
+        <span class="motivation-icon">✨</span>
+        <p id="dailyMotivation" class="motivation-text">Loading motivation...</p>
+      </div>
+      
+      <div id="currentActivity" class="activity-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Loading...</span>
+      </div>
+    </header>
+
+    <!-- Today's Stats -->
+    <section class="stats-section">
+      <h2>Today's Progress</h2>
+      <div class="stats-grid">
+        <div class="stat-card learning">
+          <div id="learningIcon" class="stat-icon">📒</div> <!-- -->
+          <div class="stat-content">
+            <div class="stat-value" id="learningTime">0m</div>
+            <div class="stat-label">Learning</div>
+          </div>
+        </div>
+        
+        <div class="stat-card distraction">
+          <div id="distractionIcon" class="stat-icon">🎮</div> <!-- -->
+          <div class="stat-content">
+            <div class="stat-value" id="distractionTime">0m</div>
+            <div class="stat-label">Distraction</div>
+          </div>
+        </div>
+        
+        <div class="stat-card mixed">
+          <div id="mixedIcon" class="stat-icon">⚖️</div> <!-- -->
+          <div class="stat-content">
+            <div class="stat-value" id="mixedTime">0m</div>
+            <div class="stat-label">Mixed</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Weekly Insight -->
+    <section class="insight-section">
+      <div class="insight-card">
+        <div class="insight-icon">💡</div>
+        <div class="insight-text" id="weeklyInsight">
+          Loading insights...
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Actions -->
+    <section class="actions-section">
+      <button id="chatBtn" class="action-btn primary">
+        <span class="btn-icon">💬</span>
+        Ask Study Coach
+      </button>
+      
+      <button id="reflectionBtn" class="action-btn secondary">
+        <span class="btn-icon">✨</span>
+        Weekly Reflection
+      </button>
+    </section>
+
+    <!-- Competition Button -->
+    <section class="competition-section">
+      <button id="competitionBtn" class="action-btn competition">
+        <span class="btn-icon">🏆</span>
+        Competition
+      </button>
+    </section>
+
+    <!-- Chat Modal -->
+    <div id="chatModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>💬Study Coach</h3>
+          <button id="closeChatBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="chatMessages" class="chat-messages">
+            <div class="chat-message assistant">
+              <div class="message-bubble">
+                Hi! I'm here to help you study better. Ask me anything! 😊
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-container">
+            <input 
+              type="text" 
+              id="chatInput" 
+              placeholder="Ask me anything..."
+              maxlength="200"
+            />
+            <button id="sendChatBtn" class="send-btn">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reflection Modal -->
+    <div id="reflectionModal" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>✨Weekly Reflection</h3>
+          <button id="closeReflectionBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="reflectionContent" class="reflection-content">
+            <div class="loading">Generating your reflection...</div>
+          </div>
+          
+          <!-- Weekly Chart -->
+          <div id="weeklyChartContainer" class="chart-container" style="display: none;">
+            <h4 class="chart-title">Learning vs Distraction</h4>
+            <canvas id="weeklyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Competition Modal -->
+    <div id="competitionModal" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>🏆 Competition Dashboard</h3>
+          <button id="closeCompetitionBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          
+          <!-- Tab Navigation -->
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="leaderboard">Leaderboard</button>
+            <button class="tab-btn" data-tab="groups">My Groups</button>
+            <button class="tab-btn" data-tab="joinCreate">Join/Create</button>
+          </div>
+
+          <!-- Leaderboard Tab -->
+          <div id="leaderboardTab" class="tab-content active">
+            <div id="groupSelector" class="group-selector">
+              <label>Select Group:</label>
+              <select id="groupSelect">
+                <option value="">Select a group...</option>
+              </select>
+            </div>
+            <div id="leaderboardContent" class="leaderboard-content">
+              <div class="empty-state">
+                <span class="empty-icon">🏆</span>
+                <p>Join a group to see the leaderboard</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Groups Tab -->
+          <div id="groupsTab" class="tab-content">
+            <div id="myGroupsList" class="groups-list">
+              <div class="empty-state">
+                <span class="empty-icon">👥</span>
+                <p>You haven't joined any groups yet</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Join/Create Tab -->
+          <div id="joinCreateTab" class="tab-content">
+            <div class="form-section">
+              <h4>Create New Group</h4>
+              <div class="input-group">
+                <input 
+                  type="text" 
+                  id="createGroupName" 
+                  placeholder="Enter group name..."
+                  maxlength="30"
+                />
+                <button id="createGroupBtn" class="action-btn primary small">Create</button>
+              </div>
+            </div>
+
+            <div class="divider">
+              <span>OR</span>
+            </div>
+
+            <div class="form-section">
+              <h4>Join Existing Group</h4>
+              <div class="input-group">
+                <input 
+                  type="text" 
+                  id="joinGroupCode" 
+                  placeholder="Enter group code..."
+                  maxlength="6"
+                  style="text-transform: uppercase;"
+                />
+                <button id="joinGroupBtn" class="action-btn secondary small">Join</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome Modal (First Time) -->
+    <div id="welcomeModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>👋 Welcome!</h3>
+        </div>
+        <div class="modal-body">
+          <p class="welcome-text">Let's set up your nickname for the competition feature:</p>
+          <div class="input-group">
+            <input 
+              type="text" 
+              id="nicknameInput" 
+              placeholder="Enter your nickname..."
+              maxlength="20"
+            />
+          </div>
+          <button id="saveNicknameBtn" class="action-btn primary full-width">Get Started</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-text">
+        Track your time • Stay focused • Grow smarter
+      </div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

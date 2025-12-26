@@ -1,0 +1,28 @@
+{
+  "users": {
+    "6cdd4fe89e214b049e883a973f8896f0": {
+      "userId": "6cdd4fe89e214b049e883a973f8896f0",
+      "nickname": "TUSHAR",
+      "createdAt": 1766696661300
+    }
+  },
+  "groups": {
+    "C000E5": {
+      "code": "C000E5",
+      "name": "meee",
+      "createdBy": "6cdd4fe89e214b049e883a973f8896f0",
+      "members": [
+        "6cdd4fe89e214b049e883a973f8896f0"
+      ],
+      "createdAt": 1766731500941
+    }
+  },
+  "stats": {
+    "6cdd4fe89e214b049e883a973f8896f0": {
+      "learningTime": 3378,
+      "distractionTime": 5278,
+      "lastUpdated": 1766747546349
+    }
+  },
+  "weeklyWins": {}
+}
