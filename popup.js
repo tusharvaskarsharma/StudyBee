@@ -1,7 +1,9 @@
 // Popup script with Competition Features - INDIAN TIME + RANK HISTORY
+const BASE_URL = "https://studybee-3ru4.onrender.com";
 
-const API_URL = 'http://localhost:3000/ai';
-const SERVER_URL = 'http://localhost:3000/api';
+const API_URL = `${BASE_URL}/ai`;
+const SERVER_URL = `${BASE_URL}/api`;
+
 
 // Helper function to get Indian date string
 function getIndianDateString() {
@@ -919,4 +921,5 @@ setInterval(() => {
   updateCurrentActivity();
   checkDistractionAlert();
   syncStatsToServer();
+
 }, 30000);
