@@ -170,7 +170,21 @@ async function syncStatsToServer() {
     refreshLeaderboardIfVisible();
 
   } catch (error) {
-    console.error('Stats sync error:', error);
+  console.error('Stats sync error:', error);
+
+  // 🟡 Auto-recover if server DB was reset
+  if (String(error).includes("User not found")) {
+
+    console.warn("User missing on server — clearing local user");
+
+    // remove old broken account from extension
+    await chrome.storage.sync.remove(['user']);
+
+    currentUser = null;
+
+    // show nickname setup screen again
+    welcomeModal.style.display = 'flex';
+    }
   }
 }
 
