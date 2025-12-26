@@ -1,4 +1,5 @@
 // Popup script with Competition Features - INDIAN TIME + RANK HISTORY
+
 const BASE_URL = "https://studybee-3ru4.onrender.com";
 
 const API_URL = `${BASE_URL}/ai`;
@@ -88,17 +89,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkUserRegistration() {
   try {
-    const result = await chrome.storage.local.get(['user']);
-    
+    // First try sync storage (persistent across updates)
+    let result = await chrome.storage.sync.get(['user']);
+
+    // 🔁 Migration from old local storage (one-time auto restore)
+    if (!result.user) {
+      const old = await chrome.storage.local.get(['user']);
+      if (old.user) {
+        await chrome.storage.sync.set({ user: old.user });
+        result = { user: old.user };
+        console.log('✔ Migrated user from local -> sync');
+      }
+    }
+
+    // If still no user — show setup screen
     if (!result.user || !result.user.userId) {
       welcomeModal.style.display = 'flex';
     } else {
       currentUser = result.user;
+      console.log('👤 Logged in as:', currentUser.nickname);
     }
+
   } catch (error) {
     console.error('Error checking registration:', error);
   }
 }
+
 
 async function registerUser(nickname) {
   try {
@@ -117,12 +133,13 @@ async function registerUser(nickname) {
     currentUser = data.user;
     
     // Initialize rank history
-    const existing = await chrome.storage.local.get(['rankHistory']);
+    const existing = await chrome.storage.sync.get(['rankHistory']);
 
-    await chrome.storage.local.set({
+    await chrome.storage.sync.set({
       user: currentUser,
       rankHistory: existing.rankHistory || {}
     });
+
 
     welcomeModal.style.display = 'none';    
     return true;
@@ -151,7 +168,7 @@ async function syncStatsToServer() {
       })
     });
     refreshLeaderboardIfVisible();
-    
+
   } catch (error) {
     console.error('Stats sync error:', error);
   }
@@ -291,7 +308,7 @@ async function loadLeaderboard(groupCode) {
 // Update rank history when user is rank 1
 async function updateRankHistory(groupCode) {
   try {
-    const result = await chrome.storage.local.get(['rankHistory']);
+    const result = await chrome.storage.sync.get(['rankHistory']);
     const rankHistory = result.rankHistory || {};
     
     if (!rankHistory[groupCode]) {
@@ -303,7 +320,7 @@ async function updateRankHistory(groupCode) {
     // Add today if not already in the list
     if (!rankHistory[groupCode].includes(today)) {
       rankHistory[groupCode].push(today);
-      await chrome.storage.local.set({ rankHistory });
+      await chrome.storage.sync.set({ rankHistory });
     }
   } catch (error) {
     console.error('Error updating rank history:', error);
@@ -313,7 +330,7 @@ async function updateRankHistory(groupCode) {
 // Get total days at rank 1
 async function getRankHistory(groupCode) {
   try {
-    const result = await chrome.storage.local.get(['rankHistory']);
+    const result = await chrome.storage.sync.get(['rankHistory']);
     const rankHistory = result.rankHistory || {};
     return rankHistory[groupCode] ? rankHistory[groupCode].length : 0;
   } catch (error) {
@@ -921,5 +938,4 @@ setInterval(() => {
   updateCurrentActivity();
   checkDistractionAlert();
   syncStatsToServer();
-
 }, 30000);
