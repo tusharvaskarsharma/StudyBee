@@ -1,6 +1,5 @@
 // server.js – Enhanced with Competition Features
 
-
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -510,3 +509,4 @@ app.listen(PORT, () => {
   console.log("=".repeat(50));
 
 });
+
