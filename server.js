@@ -1,5 +1,6 @@
 // server.js – Enhanced with Competition Features
 
+
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -507,4 +508,5 @@ app.listen(PORT, () => {
   console.log(`✅ AI endpoint: http://localhost:${PORT}/ai`);
   console.log(`✅ Competition enabled`);
   console.log("=".repeat(50));
+
 });
