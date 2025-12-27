@@ -170,7 +170,7 @@ Ensures fair competition while maintaining global motivation.
 * Node.js
 * Express.js
 * Google Gemini API
-* File‑based storage (data.json)
+* Database - MongoDB
 
 ---
 
