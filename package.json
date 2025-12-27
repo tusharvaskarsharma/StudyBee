@@ -1,5 +1,5 @@
 {
-  "name": "study-tracker-ai-server",
+  "name": "studybee",
   "version": "1.0.0",
   "description": "AI-powered study coach backend for Chrome extension",
   "type": "module",
@@ -21,7 +21,8 @@
     "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "mongoose": "^9.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
