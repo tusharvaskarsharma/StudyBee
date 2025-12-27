@@ -3,42 +3,15 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+
 import { GoogleGenAI } from "@google/genai";
 import crypto from "crypto";
-import fs from "fs";
+import { connectDB } from "./db.js";
 
-const DATA_FILE = "./data.json";
-
-let db = {
-  users: {},
-  groups: {},
-  stats: {},
-  weeklyWins: {}
-};
-
-function loadData() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      db = JSON.parse(raw);
-      console.log("✅ data.json loaded");
-    }
-  } catch (err) {
-    console.error("❌ Failed to load data.json", err);
-  }
-}
-
-function saveData() {
-  try {
-    const tempFile = DATA_FILE + ".tmp";
-    fs.writeFileSync(tempFile, JSON.stringify(db, null, 2));
-    fs.renameSync(tempFile, DATA_FILE);
-  } catch (err) {
-    console.error("❌ Failed to save data.json safely", err);
-  }
-}
-
-
+import User from "./models/User.js";
+import Group from "./models/Group.js";
+import Stats from "./models/Stats.js";
+//import WeeklyWin from "./models/WeeklyWin.js";
 
 
 // ==================== BASIC SETUP ====================
@@ -48,8 +21,28 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 
+async function startServer() {
+  try {
+    await connectDB();
+
+    app.listen(PORT, () => {
+      console.log("=".repeat(50));
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ AI endpoint: /ai`);
+      console.log(`✅ Competition enabled`);
+      console.log("=".repeat(50));
+    });
+
+  } catch (err) {
+    console.error("❌ Server failed to start", err);
+    process.exit(1);
+  }
+}
+
+startServer();
+
 // ==================== IN-MEMORY DATA STORE ====================
-// NOW WE ARE USING JSON.DATA
+// WE ARE USING MONGODB
 
 // ==================== GEMINI CLIENT ====================
 if (!process.env.GEMINI_API_KEY) {
@@ -61,329 +54,339 @@ const client = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY
 });
 
-loadData();
 
 console.log("🚀 AI Study Coach Server running");
 console.log("🤖 Gemini model: gemini-2.5-flash");
 
 // ==================== HELPER FUNCTIONS ====================
-function generateGroupCode() {
+async function generateGroupCode() {
   let code;
   do {
     code = crypto.randomBytes(3).toString("hex").toUpperCase();
-  } while (db.groups[code]);
+  } while (await Group.findOne({ code }));
   return code;
 }
 
 
-function generateUserId() {
-  return crypto.randomBytes(16).toString('hex');
-}
-
 // ==================== USER ENDPOINTS ====================
-app.post("/api/user/register", (req, res) => {
-  const { nickname } = req.body;
-
-  if (!nickname || nickname.trim().length === 0) {
-    return res.status(400).json({
-      success: false,
-      error: "Nickname is required"
-    });
-  }
-
-  if (nickname.length > 20) {
-    return res.status(400).json({
-      success: false,
-      error: "Nickname must be 20 characters or less"
-    });
-  }
-  // 🔴 DUPLICATE NICKNAME CHECK
-const cleanName = nickname.trim();
-if (Object.values(db.users).some(u => u.nickname === cleanName)) {
-  return res.status(400).json({
-    success: false,
-    error: "Nickname already taken"
-  });
-}
-
-  const userId = generateUserId();
-  const user = {
-    userId,
-    nickname: cleanName,
-    createdAt: Date.now()
-  };
-
-  db.users[userId] = user;
-  db.stats[userId] = {
-  learningTime: 0,
-  distractionTime: 0,
-  lastUpdated: Date.now()
-  };
-
-  saveData();
-
-
-  console.log(`✅ New user registered: ${nickname} (${userId})`);
-
-  res.json({
-    success: true,
-    user: {
-      userId,
-      nickname: user.nickname
+app.post("/api/user/register", async (req, res) => {
+  try {
+    const { nickname } = req.body;
+    if (!nickname) {
+      return res.status(400).json({ error: "Nickname required" });
     }
-  });
+
+    const cleanName = nickname.trim();
+
+    const existing = await User.findOne({ nickname: cleanName });
+    if (existing) {
+      return res.status(400).json({ error: "Nickname already taken" });
+    }
+
+    const userId = crypto.randomBytes(16).toString("hex");
+
+    const user = await User.create({
+      userId,
+      nickname: cleanName
+    });
+
+    await Stats.create({ userId });
+
+    res.json({
+      success: true,
+      user: {
+        userId,
+        nickname: user.nickname
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Registration failed" });
+  }
 });
+
 
 // ==================== GROUP ENDPOINTS ====================
-app.post("/api/group/create", (req, res) => {
-  const { userId, groupName } = req.body;
+app.post("/api/group/create", async (req, res) => {
+  try {
+    const { userId, groupName } = req.body;
 
-  if (!db.users[userId]) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found"
-    });
-  }
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-  if (!groupName || groupName.trim().length === 0) {
-    return res.status(400).json({
-      success: false,
-      error: "Group name is required"
-    });
-  }
+    if (!groupName || !groupName.trim()) {
+      return res.status(400).json({ error: "Group name required" });
+    }
 
-  const groupCode = generateGroupCode();
-  const group = {
-    code: groupCode,
-    name: groupName.trim(),
-    createdBy: userId,
-    members: [userId],
-    createdAt: Date.now()
-  };
+    const groupCode = await generateGroupCode();
 
-  db.groups[groupCode] = group;
-  saveData();
-
-
-  console.log(`✅ New group created: ${groupName} (${groupCode}) by ${db.users[userId].nickname}`);
-
-
-  res.json({
-    success: true,
-    group: {
+    const group = await Group.create({
       code: groupCode,
-      name: group.name
-    }
-  });
-});
-
-app.post("/api/group/join", (req, res) => {
-  const { userId, groupCode } = req.body;
-
-  if (!db.users[userId]) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found"
+      name: groupName.trim(),
+      createdBy: userId,
+      members: [userId]
     });
-  }
 
-  const code = groupCode.toUpperCase().trim();
-  if (!db.groups[code]) {
-    return res.status(404).json({
-      success: false,
-      error: "Group not found"
-    });
-  }
+    // user ke groups me add
+    user.groups.push(groupCode);
+    await user.save();
 
-  const group = db.groups[code];
-
-  if (group.members.includes(userId)) {
-    return res.status(400).json({
-      success: false,
-      error: "Already a member of this group"
-    });
-  }
-  group.members.push(userId);
-
-  // 🔴 ADD USER → USER.GROUPS (IMPORTANT)
-  db.users[userId].groups = db.users[userId].groups || [];
-
-  if (!db.users[userId].groups.includes(code)) {
-    db.users[userId].groups.push(code);
-  }
-
-saveData();
-
-  console.log(`✅ User ${db.users[userId].nickname} joined group ${group.name} (${code})`);
-
-  res.json({
-    success: true,
-    group: {
-      code: group.code,
-      name: group.name
-    }
-  });
-});
-
-app.get("/api/group/my-groups/:userId", (req, res) => {
-  const { userId } = req.params;
-
-  if (!db.users[userId]) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found"
-    });
-  }
-
-  const userGroups = [];
-  for (const code in db.groups) {
-    const group = db.groups[code];
-    if (group.members.includes(userId)) {
-      userGroups.push({
+    res.json({
+      success: true,
+      group: {
         code: group.code,
-        name: group.name,
-        memberCount: group.members.length,
-        isCreator: group.createdBy === userId
-      });
+        name: group.name
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Group creation failed" });
+  }
+});
+
+
+app.post("/api/group/join", async (req, res) => {
+  try {
+    const { userId, groupCode } = req.body;
+
+    if (!userId || !groupCode) {
+      return res.status(400).json({ error: "userId and groupCode required" });
     }
-  }
 
-  res.json({
-    success: true,
-    groups: userGroups
-  });
+    const code = groupCode.toUpperCase().trim();
+
+    // 1️⃣ user check
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 2️⃣ group check
+    const group = await Group.findOne({ code });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    // 3️⃣ already member?
+    if (group.members.includes(userId)) {
+      return res.status(400).json({ error: "Already a member of this group" });
+    }
+
+    // 4️⃣ add user to group
+    group.members.push(userId);
+    await group.save();
+
+    // 5️⃣ add group to user
+    if (!user.groups.includes(code)) {
+      user.groups.push(code);
+      await user.save();
+    }
+
+    res.json({
+      success: true,
+      group: {
+        code: group.code,
+        name: group.name
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Join group failed" });
+  }
 });
 
-app.post("/api/group/leave", (req, res) => {
-  const { userId, groupCode } = req.body;
 
-  if (!db.users[userId]) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found"
+app.get("/api/group/my-groups/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 1️⃣ user check
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 2️⃣ fetch groups user belongs to
+    const groups = await Group.find({
+      members: userId
     });
-  }
 
-  const code = groupCode.toUpperCase().trim();
-  if (!db.groups[code]) {
-    return res.status(404).json({
-      success: false,
-      error: "Group not found"
+    const result = groups.map(group => ({
+      code: group.code,
+      name: group.name,
+      memberCount: group.members.length,
+      isCreator: group.createdBy === userId
+    }));
+
+    res.json({
+      success: true,
+      groups: result
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch groups" });
   }
-
-  const group = db.groups[code];
-  const memberIndex = group.members.indexOf(userId);
-
-  if (memberIndex === -1) {
-    return res.status(400).json({
-      success: false,
-      error: "Not a member of this group"
-    });
-  }
-
-  group.members.splice(memberIndex, 1);
-  // 🔴 REMOVE GROUP FROM USER.GROUPS (CRITICAL)
-  db.users[userId].groups = (db.users[userId].groups || []).filter(g => g !== code);
-
-
-  // Delete group if empty
-  if (group.members.length === 0) {
-    delete db.groups[code];
-    console.log(`🗑️ Group ${group.name} (${code}) deleted (empty)`);
-  } else {
-    console.log(`✅ User ${db.users[userId].nickname} left group ${group.name} (${code})`);
-  }
-  saveData();
-
-  res.json({
-    success: true
-  });
 });
+
+
+app.post("/api/group/leave", async (req, res) => {
+  try {
+    const { userId, groupCode } = req.body;
+
+    if (!userId || !groupCode) {
+      return res.status(400).json({ error: "userId and groupCode required" });
+    }
+    const code = groupCode.toUpperCase().trim();
+    // 1️⃣ find user
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    // 2️⃣ find group
+    const group = await Group.findOne({ code });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+    // 3️⃣ check membership
+    if (!group.members.includes(userId)) {
+      return res.status(400).json({ error: "Not a member of this group" });
+    }
+    // 4️⃣ remove user from group
+    group.members = group.members.filter(id => id !== userId);
+    // 5️⃣ remove group from user
+    user.groups = user.groups.filter(g => g !== code);
+    // 6️⃣ if group empty → delete
+    if (group.members.length === 0) {
+      await Group.deleteOne({ code });
+      console.log(`🗑️ Group ${code} deleted (empty)`);
+    } else {
+      await group.save();
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Left group successfully"
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Leave group failed" });
+  }
+});
+
 
 // ==================== LEADERBOARD ENDPOINT ====================
-app.get("/api/leaderboard/:groupCode", (req, res) => {
-  const { groupCode } = req.params;
-  const code = groupCode.toUpperCase().trim();
+app.get("/api/leaderboard/:groupCode", async (req, res) => {
+  try {
+    const code = req.params.groupCode.toUpperCase().trim();
 
-  if (!db.groups[code]) {
-    return res.status(404).json({
-      success: false,
-      error: "Group not found"
+    // 1️⃣ find group
+    const group = await Group.findOne({ code });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    const leaderboard = [];
+
+    // 2️⃣ loop members
+    for (const userId of group.members) {
+      const user = await User.findOne({ userId });
+      if (!user) continue;
+
+      const stats = await Stats.findOne({ userId });
+
+      const learningTime = stats?.learningTime || 0;
+      const distractionTime = stats?.distractionTime || 0;
+
+      const focusScore = Math.max(
+        0,
+        learningTime - distractionTime * 0.5
+      );
+
+      leaderboard.push({
+        userId,
+        nickname: user.nickname,
+        learningTime,
+        distractionTime,
+        focusScore
+      });
+    }
+
+    // 3️⃣ sort by focus score
+    leaderboard.sort((a, b) => b.focusScore - a.focusScore);
+
+    // 4️⃣ add rank
+    leaderboard.forEach((entry, index) => {
+      entry.rank = index + 1;
     });
-  }
 
-  const group = db.groups[code];
-  const leaderboard = [];
-
-  for (const memberId of group.members) {
-    const user = db.users[memberId];
-    const userStats = db.stats[memberId] || {
-      learningTime: 0,
-      distractionTime: 0
-    };
-
-    leaderboard.push({
-      userId: memberId,
-      nickname: user.nickname,
-      learningTime: userStats.learningTime,
-      distractionTime: userStats.distractionTime,
-      focusScore: Math.max(0, userStats.learningTime - userStats.distractionTime * 0.5)
+    res.json({
+      success: true,
+      groupName: group.name,
+      leaderboard
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Leaderboard fetch failed" });
   }
-
-  // Sort by focus score descending
-  leaderboard.sort((a, b) => b.focusScore - a.focusScore);
-
-  // Add rank
-  leaderboard.forEach((entry, index) => {
-    entry.rank = index + 1;
-  });
-
-  res.json({
-    success: true,
-    groupName: group.name,
-    leaderboard
-  });
 });
+
 
 // ==================== STATS SYNC ENDPOINT ====================
-app.post("/api/stats/sync", (req, res) => {
-  const { userId, learningTime, distractionTime } = req.body;
+app.post("/api/stats/sync", async (req, res) => {
+  try {
+    const { userId, learningTime, distractionTime } = req.body;
 
-  if (!db.users[userId]) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found"
-    });
-  }
+    if (!userId) {
+      return res.status(400).json({ error: "userId required" });
+    }
 
-  const prevStats = db.stats[userId] || {
-  learningTime: 0,
-  distractionTime: 0
-  };
+    // 1️⃣ user exists?
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-  const mergedStats = {
-    learningTime: Math.max(
-      prevStats.learningTime,
+    // 2️⃣ get existing stats (or create if missing)
+    let stats = await Stats.findOne({ userId });
+    if (!stats) {
+      stats = await Stats.create({ userId });
+    }
+
+    // 3️⃣ merge safely (never decrease)
+    const newLearning = Math.max(
+      stats.learningTime || 0,
       Math.floor(learningTime || 0)
-    ),
-  distractionTime: Math.max(
-    prevStats.distractionTime,
-    Math.floor(distractionTime || 0)
-  ),
-  lastUpdated: Date.now()
-};
+    );
 
-db.stats[userId] = mergedStats;
+    const newDistraction = Math.max(
+      stats.distractionTime || 0,
+      Math.floor(distractionTime || 0)
+    );
 
-  saveData();
+    stats.learningTime = newLearning;
+    stats.distractionTime = newDistraction;
+    stats.lastUpdated = Date.now();
 
-  res.json({
-    success: true,
-    stats: mergedStats
-  });
+    await stats.save();
+
+    res.json({
+      success: true,
+      stats: {
+        learningTime: stats.learningTime,
+        distractionTime: stats.distractionTime,
+        lastUpdated: stats.lastUpdated
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Stats sync failed" });
+  }
 });
+
 
 // ==================== AI PROMPT BUILDER ====================
 function buildPrompt(type, data) {
@@ -489,24 +492,12 @@ app.post("/ai", async (req, res) => {
 });
 
 // ==================== HEALTH CHECK ====================
-app.get("/health", (req, res) => {
+app.get("/health", async (req, res) => {
   res.json({
     success: true,
     model: "gemini-2.5-flash",
-    users: Object.keys(db.users).length,
-    groups: Object.keys(db.groups).length,
+    users: await User.countDocuments(),
+    groups: await Group.countDocuments(),
     time: new Date().toISOString()
   });
 });
-
-
-// ==================== START SERVER ====================
-app.listen(PORT, () => {
-  console.log("=".repeat(50));
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-  console.log(`✅ AI endpoint: http://localhost:${PORT}/ai`);
-  console.log(`✅ Competition enabled`);
-  console.log("=".repeat(50));
-
-});
-
