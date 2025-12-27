@@ -4,8 +4,6 @@ StudyBee is a **Chrome Extension** that helps students **study smarter, stay foc
 
 It automatically tracks browsing activity, classifies it into *Learning* and *Distraction*, generates **AI‑based insights**, and transforms productivity into a **motivating competitive experience** through leaderboards.
 
-This project is designed as a **scalable product**, not just a tracker.
-
 ---
 
 ## 🚩 Problem Statement
@@ -39,17 +37,17 @@ To help students **understand their habits and improve consistently**.
 
 * Tracks active browser tabs in real time
 * Classifies activity as **Learning / Distraction / Mixed**
-* Uses **Indian Time (Asia/Kolkata)** for accuracy
 * Maintains last **7 days** of activity data
 
 ### 🤖 AI‑Powered Study Coach
 
 * Daily **AI motivation** based on activity
 * **Study Coach Chat** for guidance
-* **Weekly AI Reflection**:
 
-  * Analyzes weekly performance
-  * Compares learning vs distraction
+### ✨ Weekly AI Reflection
+
+  * Analyzes weekly performance in a few sentences
+  * Generates graph comparing learning vs distraction 
   * Identifies **best focus hours**
   * Suggests **ideal study timings**
 
@@ -59,6 +57,12 @@ To help students **understand their habits and improve consistently**.
 * Compete with friends on **focus score**
 * Live leaderboards inside the extension
 * Tracks **Rank #1 streaks** 🥇
+* Gamified experience by earning points 
+
+### 🚨 Notification Alerts
+
+* Sends notification when distracted time exceeds learning time
+* Resends notofication every 30 minutes while (distraction > learning)
 
 ### 🎨 User Experience
 
@@ -127,7 +131,7 @@ No local server setup required.
   * Medical
   * JEE / NEET
   * SSC
-  * UPSC (Aspirants)
+  * UPSC
 * Students can view:
 
   * Their **domain‑specific global rank**
@@ -153,15 +157,6 @@ Ensures fair competition while maintaining global motivation.
 
 ---
 
-## 🧪 Use Cases
-
-* Exam‑preparing students
-* Competitive exam aspirants
-* Hackathon participants
-* Peer groups seeking accountability
-
----
-
 ## 🛠️ Tech Stack
 
 **Frontend (Chrome Extension)**
@@ -182,8 +177,9 @@ Ensures fair competition while maintaining global motivation.
 ## 👤 Author
 
 **Team BEGINNY**
+[Akanksha, Tushar]
 
-Built with ❤️ to help students **study smarter, not harder**.
+Built with hardwork and sleepy eyes TT to help students **study smarter, not harder**.
 
 ---
 
