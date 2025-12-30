@@ -177,7 +177,7 @@ Ensures fair competition while maintaining global motivation.
 ## 👤 Author
 
 **Team BEGINNY**
-[Akanksha, Tushar]
+[Akanksha Kumari, Tushar Vaskar Sharma]
 
 Built with hardwork and sleepy eyes TT to help students **study smarter, not harder**.
 
@@ -187,7 +187,4 @@ Built with hardwork and sleepy eyes TT to help students **study smarter, not har
 
 StudyBee🐝 is not just a productivity tracker —
 It is a **behavior‑driven, AI‑guided learning companion** designed to scale across millions of students.
-
-
-
 
